@@ -112,22 +112,6 @@ h1, h2, h3, h4, h5, h6 {
     position: relative;
 }
 
-.logo-text::before {
-    content: '◆';
-    position: absolute;
-    left: -25px;
-    color: var(--golden-yellow);
-    font-size: 0.8em;
-}
-
-.logo-text::after {
-    content: '◆';
-    position: absolute;
-    right: -25px;
-    color: var(--golden-yellow);
-    font-size: 0.8em;
-}
-
 .nav-menu {
     display: flex;
     list-style: none;
@@ -1130,11 +1114,6 @@ section {
     
     .section-title::before,
     .section-title::after {
-        display: none;
-    }
-    
-    .logo-text::before,
-    .logo-text::after {
         display: none;
     }
     
