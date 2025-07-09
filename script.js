@@ -1,8 +1,377 @@
+// 🐲 3D Dragon Viewer Class
+class Dragon3DViewer {
+    constructor() {
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        this.dragon = null;
+        this.mixer = null;
+        this.clock = null;
+        this.container = null;
+        this.isLoaded = false;
+        this.THREE = null;
+        this.GLTFLoader = null;
+    }
+
+    // Load THREE.js libraries using ES modules
+    async loadThreeJS() {
+        try {
+            console.log('Loading Three.js ES modules...');
+            
+            // Dynamic import Three.js modules
+            const THREE = await import('three');
+            const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+            
+            console.log('Three.js ES modules loaded successfully');
+            return { THREE, GLTFLoader };
+        } catch (error) {
+            console.error('Failed to load Three.js ES modules:', error);
+            throw error;
+        }
+    }
+
+    async init(container) {
+        this.container = container;
+        
+        // Load THREE.js libraries
+        const { THREE, GLTFLoader } = await this.loadThreeJS();
+        this.THREE = THREE;
+        this.GLTFLoader = GLTFLoader;
+        
+        // Initialize clock
+        this.clock = new THREE.Clock();
+        
+        // Setup scene
+        this.scene = new THREE.Scene();
+        
+        // Setup camera với field of view rộng hơn
+        this.camera = new THREE.PerspectiveCamera(
+            90, // Tăng FOV để nhìn thấy toàn bộ rồng
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        this.camera.position.set(300, 5, 300); // Xoay sang bên phải một chút
+        this.camera.lookAt(0, 0, 2); // Nhìn vào vị trí của rồng
+        
+        // Setup renderer
+        this.renderer = new THREE.WebGLRenderer({ 
+            alpha: true, 
+            antialias: true,
+            premultipliedAlpha: false,
+            depth: true // Đảm bảo depth buffer
+        });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setClearColor(0x000000, 0); // Hoàn toàn trong suốt
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        
+        // Tối ưu depth và rendering
+        this.renderer.sortObjects = true;
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.2;
+        
+        container.appendChild(this.renderer.domElement);
+        
+        // Setup lighting
+        this.setupLighting();
+        
+        // Load dragon model
+        await this.loadDragonModel();
+        
+        // Start animation loop
+        this.animate();
+    }
+
+    setupLighting() {
+        const { THREE } = this;
+        
+        // Bright ambient light để rồng không bị tối
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+        this.scene.add(ambientLight);
+        
+        // Main directional light (sáng hơn)
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        directionalLight.position.set(10, 10, 5);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        this.scene.add(directionalLight);
+        
+        // Additional directional light từ phía đối diện
+        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight2.position.set(-10, 10, -5);
+        this.scene.add(directionalLight2);
+        
+        // Point lights for dramatic effect (sáng hơn)
+        const redLight = new THREE.PointLight(0xff0000, 1.2, 30);
+        redLight.position.set(-5, 3, 2);
+        this.scene.add(redLight);
+        
+        const goldLight = new THREE.PointLight(0xffd700, 1, 25);
+        goldLight.position.set(5, 3, -2);
+        this.scene.add(goldLight);
+        
+        // Additional lights để chiếu sáng toàn diện
+        const topLight = new THREE.PointLight(0xffffff, 0.8, 20);
+        topLight.position.set(0, 10, 0);
+        this.scene.add(topLight);
+        
+        const frontLight = new THREE.PointLight(0xffffff, 0.6, 15);
+        frontLight.position.set(0, 0, 10);
+        this.scene.add(frontLight);
+    }
+
+    async loadDragonModel() {
+        try {
+            console.log('Creating GLTFLoader...');
+            const loader = new this.GLTFLoader();
+            console.log('GLTFLoader created successfully');
+            
+            const modelPath = 'assets/models/chinese_dragon.glb';
+            console.log('Loading dragon model from:', modelPath);
+            
+            const gltf = await new Promise((resolve, reject) => {
+                loader.load(
+                    modelPath,
+                    resolve,
+                    (progress) => {
+                        console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+                    },
+                    (error) => {
+                        console.error('Error loading model:', error);
+                        reject(error);
+                    }
+                );
+            });
+            
+            this.dragon = gltf.scene;
+            
+            // Scale and position the dragon (thu nhỏ rất nhiều)
+            this.dragon.scale.set(0.2, 0.2, 0.2);
+            this.dragon.position.set(0, 0, 2); // Đưa ra phía trước trang web
+            this.dragon.rotation.y = Math.PI / 4;
+            
+            // Enable shadows và enhance materials
+            this.dragon.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    
+                    // Enhance materials để sáng hơn
+                    if (child.material) {
+                        // Clone material để không ảnh hưởng original
+                        child.material = child.material.clone();
+                        
+                        child.material.metalness = 0.2;
+                        child.material.roughness = 0.3;
+                        
+                        // Tăng brightness
+                        if (child.material.color) {
+                            child.material.color.multiplyScalar(1.3);
+                        }
+                        
+                        // Thêm emissive để tự phát sáng
+                        if (child.material.emissive) {
+                            child.material.emissive.multiplyScalar(0.3);
+                        }
+                        
+                        // Cập nhật material
+                        child.material.needsUpdate = true;
+                    }
+                }
+            });
+            
+            this.scene.add(this.dragon);
+            
+            // Setup animations if available
+            if (gltf.animations && gltf.animations.length > 0) {
+                this.mixer = new this.THREE.AnimationMixer(this.dragon);
+                
+                gltf.animations.forEach((clip) => {
+                    const action = this.mixer.clipAction(clip);
+                    action.time = 9; // Bắt đầu từ giây thứ 7
+                    action.play();
+                });
+            }
+            
+            this.isLoaded = true;
+            console.log('Dragon model loaded successfully!');
+            
+        } catch (error) {
+            console.error('Error loading dragon model:', error);
+            console.log('Creating fallback dragon geometry...');
+            
+            // Create fallback dragon using basic geometry
+            this.createFallbackDragon();
+            this.isLoaded = true;
+        }
+    }
+
+    // Create fallback dragon using basic Three.js geometry
+    createFallbackDragon() {
+        const { THREE } = this;
+        const group = new THREE.Group();
+        
+        // Dragon body (elongated cylinder)
+        const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.5, 4, 8);
+        const bodyMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0xff3333,
+            shininess: 100,
+            emissive: 0x330000, // Thêm emissive để sáng hơn
+            emissiveIntensity: 0.2
+        });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.rotation.z = Math.PI / 2;
+        group.add(body);
+        
+        // Dragon head (sphere)
+        const headGeometry = new THREE.SphereGeometry(0.6, 8, 6);
+        const headMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0xff4444,
+            shininess: 100,
+            emissive: 0x440000,
+            emissiveIntensity: 0.3
+        });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.x = 2.5;
+        group.add(head);
+        
+        // Dragon eyes
+        const eyeGeometry = new THREE.SphereGeometry(0.1, 6, 4);
+        const eyeMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0xffd700,
+            emissive: 0xffaa00,
+            emissiveIntensity: 0.5
+        });
+        
+        const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        leftEye.position.set(2.8, 0.2, 0.3);
+        group.add(leftEye);
+        
+        const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        rightEye.position.set(2.8, 0.2, -0.3);
+        group.add(rightEye);
+        
+        // Dragon wings
+        const wingGeometry = new THREE.ConeGeometry(1, 2, 4);
+        const wingMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0xaa2222,
+            transparent: true,
+            opacity: 0.9,
+            emissive: 0x220000,
+            emissiveIntensity: 0.1
+        });
+        
+        const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+        leftWing.position.set(0, 1.5, 1);
+        leftWing.rotation.z = Math.PI / 4;
+        group.add(leftWing);
+        
+        const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
+        rightWing.position.set(0, 1.5, -1);
+        rightWing.rotation.z = -Math.PI / 4;
+        group.add(rightWing);
+        
+        // Dragon tail
+        const tailGeometry = new THREE.ConeGeometry(0.2, 1.5, 6);
+        const tail = new THREE.Mesh(tailGeometry, bodyMaterial);
+        tail.position.x = -2.5;
+        tail.rotation.z = Math.PI / 2;
+        group.add(tail);
+        
+        // Set dragon properties
+        this.dragon = group;
+        this.dragon.scale.set(0.2, 0.2, 0.2);
+        this.dragon.position.set(0, 0, 2); // Đưa ra phía trước trang web
+        this.dragon.rotation.y = Math.PI / 4;
+        
+        // Enable shadows
+        group.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+        
+        this.scene.add(this.dragon);
+        console.log('Fallback dragon created successfully!');
+    }
+
+    animate() {
+        const delta = this.clock.getDelta();
+        
+        // Update animations
+        if (this.mixer) {
+            this.mixer.update(delta);
+        }
+        
+        // Dragon animation (không xoay)
+        if (this.dragon) {
+            // Add floating motion với movement nhẹ nhàng hơn
+            const time = Date.now() * 0.001;
+            this.dragon.position.y = Math.sin(time) * 1; // Tăng amplitude vì camera xa hơn
+            this.dragon.position.x = Math.sin(time * 0.7) * 0.8;
+            this.dragon.position.z = 2 + Math.sin(time * 0.5) * 0.5; // Dao động ở phía trước
+        }
+        
+        // Render scene
+        this.renderer.render(this.scene, this.camera);
+        
+        // Continue animation
+        requestAnimationFrame(() => this.animate());
+    }
+
+    show() {
+        if (this.container) {
+            this.container.style.display = 'block';
+            this.container.style.opacity = '0';
+            
+            // Fade in
+            setTimeout(() => {
+                this.container.style.transition = 'opacity 1s ease-in-out';
+                this.container.style.opacity = '1';
+                this.container.classList.add('active');
+            }, 100);
+        }
+    }
+
+    hide() {
+        if (this.container) {
+            this.container.style.transition = 'opacity 1s ease-in-out';
+            this.container.style.opacity = '0';
+            
+            setTimeout(() => {
+                this.container.style.display = 'none';
+            }, 1000);
+        }
+    }
+
+    dispose() {
+        if (this.renderer) {
+            this.renderer.dispose();
+        }
+        if (this.container && this.container.parentNode) {
+            this.container.parentNode.removeChild(this.container);
+        }
+    }
+
+    onWindowResize() {
+        if (this.camera && this.renderer) {
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    }
+}
+
 // 🐲 EPIC DRAGON EASTER EGG - SIÊU HÙNG VĨ
 class EpicDragonEasterEgg {
     constructor() {
         this.audioContext = null;
         this.sounds = {};
+        this.dragon3D = null;
         this.setupAudio();
     }
 
@@ -35,8 +404,8 @@ class EpicDragonEasterEgg {
         oscillator.stop(this.audioContext.currentTime + duration);
     }
 
-    // Tạo hiệu ứng EPIC DRAGON
-    createEpicDragonAnimation() {
+    // Tạo hiệu ứng EPIC DRAGON với 3D Model
+    async createEpicDragonAnimation() {
         // Kích hoạt âm thanh rồng
         this.playDragonRoar();
         
@@ -46,8 +415,8 @@ class EpicDragonEasterEgg {
         // Screen shake effect
         this.addScreenShake();
         
-        // Tạo nhiều con rồng
-        this.createMultipleDragons();
+        // Tạo 3D Dragon thay vì emoji dragons
+        await this.create3DDragon();
         
         // Lightning effects
         this.createLightningEffects();
@@ -58,12 +427,83 @@ class EpicDragonEasterEgg {
         // Epic text animation
         this.createEpicTextAnimation();
         
-        // Cleanup sau 8 giây
+        // Cleanup sau 12 giây (tăng thời gian cho 3D dragon)
         setTimeout(() => {
             overlay.remove();
             document.body.classList.remove('dragon-shake');
             this.cleanup();
-        }, 8000);
+        }, 12000);
+    }
+
+    // Tạo 3D Dragon Scene
+    async create3DDragon() {
+        // Tạo container cho 3D scene
+        const dragonContainer = document.createElement('div');
+        dragonContainer.className = 'dragon-3d-container';
+        dragonContainer.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10002;
+            pointer-events: none;
+            display: block;
+        `;
+
+        // Add loading indicator
+        const loadingDiv = document.createElement('div');
+        loadingDiv.innerHTML = '🐉 Đang triệu hồi Long Vương... 🐉';
+        loadingDiv.style.cssText = `
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #FFD700;
+            font-size: 2rem;
+            font-family: 'Ma Shan Zheng', cursive;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10003;
+            animation: pulse 1s ease-in-out infinite alternate;
+        `;
+        dragonContainer.appendChild(loadingDiv);
+
+        document.body.appendChild(dragonContainer);
+
+        // Khởi tạo Dragon 3D Viewer
+        this.dragon3D = new Dragon3DViewer();
+        
+        try {
+            await this.dragon3D.init(dragonContainer);
+            
+            // Remove loading indicator
+            const loadingDiv = dragonContainer.querySelector('div');
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
+            
+            // Hiển thị dragon với hiệu ứng fade-in
+            this.dragon3D.show();
+            
+            // Tự động ẩn sau 10 giây
+            setTimeout(() => {
+                if (this.dragon3D) {
+                    this.dragon3D.hide();
+                }
+            }, 10000);
+            
+            console.log('3D Dragon Easter Egg activated successfully!');
+            
+        } catch (error) {
+            console.error('Failed to load 3D dragon:', error);
+            // Remove loading indicator
+            const loadingDiv = dragonContainer.querySelector('div');
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
+            // Fallback to original emoji dragons if 3D fails
+            this.createMultipleDragons();
+        }
     }
 
     // Âm thanh rồng gầm
@@ -75,10 +515,10 @@ class EpicDragonEasterEgg {
         setTimeout(() => this.playSound(120, 1.2, 'square'), 300);
         setTimeout(() => this.playSound(200, 0.8, 'triangle'), 600);
         
-        // Tiếng sét
-        setTimeout(() => this.playSound(1000, 0.1, 'white'), 1000);
-        setTimeout(() => this.playSound(800, 0.1, 'white'), 1100);
-        setTimeout(() => this.playSound(600, 0.2, 'white'), 1200);
+        // Tiếng sét (sử dụng sawtooth thay vì white noise)
+        setTimeout(() => this.playSound(1000, 0.1, 'sawtooth'), 1000);
+        setTimeout(() => this.playSound(800, 0.1, 'square'), 1100);
+        setTimeout(() => this.playSound(600, 0.2, 'triangle'), 1200);
     }
 
     // Tạo overlay dramatic
@@ -466,9 +906,15 @@ class EpicDragonEasterEgg {
     // Cleanup function
     cleanup() {
         // Remove any remaining elements
-        document.querySelectorAll('.epic-dragon, .lightning-bolt, .epic-text-container').forEach(el => {
+        document.querySelectorAll('.epic-dragon, .lightning-bolt, .epic-text-container, .dragon-3d-container').forEach(el => {
             el.remove();
         });
+        
+        // Dispose 3D dragon properly
+        if (this.dragon3D) {
+            this.dragon3D.dispose();
+            this.dragon3D = null;
+        }
         
         // Remove temporary styles
         document.querySelectorAll('style').forEach(style => {
@@ -976,15 +1422,14 @@ setupEasterEgg() {
     let touchStartY = 0;
     const dragonSequence = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'];
 
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', async (e) => {
         keySequence.push(e.code);
         if (keySequence.length > dragonSequence.length) {
             keySequence.shift();
         }
         
         if (keySequence.join(',') === dragonSequence.join(',')) {
-            this.epicDragon.createEpicDragonAnimation();
-            this.showNotification('🐉 EPIC DRAGON MODE ACTIVATED! 🐉', 'success');
+            await this.epicDragon.createEpicDragonAnimation();
             keySequence = [];
         }
     });
@@ -994,7 +1439,7 @@ setupEasterEgg() {
         touchStartY = e.touches[0].clientY;
     }, { passive: true });
 
-    document.addEventListener('touchend', (e) => {
+    document.addEventListener('touchend', async (e) => {
         const touchEndY = e.changedTouches[0].clientY;
         const diff = touchStartY - touchEndY;
         
@@ -1003,12 +1448,18 @@ setupEasterEgg() {
             if (touchSequence.length > 6) touchSequence.shift();
             
             if (touchSequence.join(',') === 'up,up,down,down,up,down') {
-                this.epicDragon.createEpicDragonAnimation();
-                this.showNotification('🐉 EPIC DRAGON MODE - TOUCH VERSION! 🐉', 'success');
+                await this.epicDragon.createEpicDragonAnimation();
                 touchSequence = [];
             }
         }
     }, { passive: true });
+
+    // Add window resize handler for 3D dragon
+    window.addEventListener('resize', () => {
+        if (this.epicDragon && this.epicDragon.dragon3D) {
+            this.epicDragon.dragon3D.onWindowResize();
+        }
+    });
 }
     
     // Event Listeners
