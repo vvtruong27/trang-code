@@ -1530,6 +1530,234 @@ setupEasterEgg() {
     }
 }
 
+// Custom Dropdown Functionality
+let dropdownState = {
+    isOpen: false,
+    selectedValue: '',
+    selectedText: ''
+};
+
+// Toggle dropdown menu
+function toggleDropdown() {
+    const dropdownSelected = document.querySelector('.dropdown-selected');
+    const dropdownMenu = document.getElementById('dropdownMenu');
+    
+    dropdownState.isOpen = !dropdownState.isOpen;
+    
+    if (dropdownState.isOpen) {
+        dropdownSelected.classList.add('active');
+        dropdownMenu.classList.add('active');
+        document.addEventListener('click', closeDropdownOutside);
+    } else {
+        dropdownSelected.classList.remove('active');
+        dropdownMenu.classList.remove('active');
+        document.removeEventListener('click', closeDropdownOutside);
+    }
+}
+
+// Close dropdown when clicking outside
+function closeDropdownOutside(event) {
+    const dropdown = document.getElementById('programDropdown');
+    
+    if (!dropdown.contains(event.target)) {
+        closeDropdown();
+    }
+}
+
+// Close dropdown
+function closeDropdown() {
+    const dropdownSelected = document.querySelector('.dropdown-selected');
+    const dropdownMenu = document.getElementById('dropdownMenu');
+    
+    dropdownState.isOpen = false;
+    dropdownSelected.classList.remove('active');
+    dropdownMenu.classList.remove('active');
+    document.removeEventListener('click', closeDropdownOutside);
+}
+
+// Handle submenu item selection
+function selectSubmenuItem(event, value, text) {
+    console.log('selectSubmenuItem called with:', { value, text });
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Update selected value and text
+    dropdownState.selectedValue = value;
+    dropdownState.selectedText = text;
+    
+    // Update UI
+    const selectedTextElement = document.querySelector('.selected-text');
+    const hiddenInput = document.getElementById('selectedProgram');
+    
+    console.log('Updating UI elements:', { selectedTextElement, hiddenInput });
+    
+    if (selectedTextElement) {
+        selectedTextElement.textContent = text;
+        selectedTextElement.classList.remove('placeholder');
+    }
+    
+    if (hiddenInput) {
+        hiddenInput.value = value;
+    }
+    
+    // Close dropdown
+    closeDropdown();
+    
+    // Add visual feedback
+    const dropdownSelected = document.querySelector('.dropdown-selected');
+    dropdownSelected.style.borderColor = '#28a745';
+    dropdownSelected.style.boxShadow = '0 0 0 3px rgba(40, 167, 69, 0.1)';
+    
+    setTimeout(() => {
+        dropdownSelected.style.borderColor = '';
+        dropdownSelected.style.boxShadow = '';
+    }, 2000);
+}
+
+// Initialize dropdown functionality
+function initializeDropdown() {
+    const submenuItems = document.querySelectorAll('.submenu-item');
+    console.log('Found submenu items:', submenuItems.length);
+    
+    submenuItems.forEach((item, index) => {
+        console.log(`Binding event to submenu item ${index}:`, item.textContent.trim());
+        item.addEventListener('click', function(event) {
+            console.log('Submenu item clicked:', this.textContent.trim());
+            event.preventDefault();
+            event.stopPropagation();
+            
+            const value = this.getAttribute('data-value');
+            const text = this.textContent.trim();
+            selectSubmenuItem(event, value, text);
+        });
+    });
+    
+    // Prevent dropdown from closing when clicking on dropdown items (but not submenu)
+    const dropdownItems = document.querySelectorAll('.dropdown-item');
+    dropdownItems.forEach(item => {
+        item.addEventListener('click', function(event) {
+            // Only prevent default if not clicking on submenu
+            if (!event.target.classList.contains('submenu-item')) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        });
+    });
+    
+    // Handle mobile interactions
+    function handleMobileDropdown() {
+        // Remove existing mobile event listeners
+        const dropdownItems = document.querySelectorAll('.dropdown-item');
+        
+        dropdownItems.forEach(item => {
+            const submenu = item.querySelector('.submenu');
+            if (!submenu) return;
+            
+            // Remove any existing mobile click handlers
+            const clonedItem = item.cloneNode(true);
+            item.parentNode.replaceChild(clonedItem, item);
+        });
+        
+        // Re-bind submenu item clicks
+        const submenuItems = document.querySelectorAll('.submenu-item');
+        submenuItems.forEach((item, index) => {
+            item.addEventListener('click', function(event) {
+                console.log('Submenu item clicked:', this.textContent.trim());
+                event.preventDefault();
+                event.stopPropagation();
+                
+                const value = this.getAttribute('data-value');
+                const text = this.textContent.trim();
+                selectSubmenuItem(event, value, text);
+            });
+        });
+        
+        // Add mobile click handlers for dropdown items
+        const newDropdownItems = document.querySelectorAll('.dropdown-item');
+        newDropdownItems.forEach(item => {
+            const submenu = item.querySelector('.submenu');
+            if (!submenu) return;
+            
+            // For mobile, use click to toggle submenu
+            if (window.innerWidth <= 768) {
+                item.addEventListener('click', function(event) {
+                    console.log('Mobile dropdown item clicked:', this.querySelector('.category-title').textContent);
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    // Close other submenus
+                    newDropdownItems.forEach(otherItem => {
+                        if (otherItem !== item) {
+                            const otherSubmenu = otherItem.querySelector('.submenu');
+                            if (otherSubmenu) {
+                                otherSubmenu.style.maxHeight = '0px';
+                                otherSubmenu.style.opacity = '0';
+                                otherSubmenu.style.visibility = 'hidden';
+                                otherItem.classList.remove('active');
+                            }
+                        }
+                    });
+                    
+                    // Toggle current submenu
+                    const isOpen = item.classList.contains('active');
+                    if (isOpen) {
+                        submenu.style.maxHeight = '0px';
+                        submenu.style.opacity = '0';
+                        submenu.style.visibility = 'hidden';
+                        item.classList.remove('active');
+                        console.log('Submenu closed');
+                    } else {
+                        submenu.style.maxHeight = '250px';
+                        submenu.style.opacity = '1';
+                        submenu.style.visibility = 'visible';
+                        item.classList.add('active');
+                        console.log('Submenu opened');
+                    }
+                });
+            }
+        });
+    }
+    
+    // Call mobile handler
+    handleMobileDropdown();
+    
+    // Re-bind on window resize
+    window.addEventListener('resize', function() {
+        setTimeout(handleMobileDropdown, 100);
+    });
+    
+    // Add keyboard navigation
+    document.addEventListener('keydown', function(event) {
+        if (dropdownState.isOpen) {
+            if (event.key === 'Escape') {
+                closeDropdown();
+            }
+        }
+    });
+}
+
+// Initialize dropdown when DOM is ready
+function setupDropdown() {
+    // Wait a bit to ensure DOM is fully rendered
+    setTimeout(() => {
+        initializeDropdown();
+        
+        // Force mobile setup if on mobile device
+        if (window.innerWidth <= 768) {
+            console.log('Mobile device detected, setting up mobile dropdown');
+            setTimeout(handleMobileDropdown, 200);
+        }
+        
+        console.log('Dropdown initialized successfully');
+    }, 100);
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupDropdown);
+} else {
+    setupDropdown();
+}
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     new WebsiteOptimizer();

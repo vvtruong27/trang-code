@@ -208,15 +208,15 @@
             <!-- Statistics Section -->
             <div class="btec-stats">
                 <div class="stat-item">
-                    <span class="stat-number">15+</span>
-                    <div class="stat-label">Năm kinh nghiệm</div>
+                    <span class="stat-number">5 ⭐</span>
+                    <div class="stat-label">Chương trình học quốc tế chất lượng cao</div>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-number">95%</span>
-                    <div class="stat-label">Sinh viên có việc làm</div>
+                    <span class="stat-number">98%</span>
+                    <div class="stat-label">Sinh viên có việc làm ngay sau khi tốt nghiệp</div>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-number">10,000+</span>
+                    <span class="stat-number">10000+</span>
                     <div class="stat-label">Sinh viên đã tốt nghiệp</div>
                 </div>
                 <div class="stat-item">
@@ -329,13 +329,55 @@
                             <input type="tel" name="phone" placeholder="Số điện thoại *" required>
                         </div>
                         <div class="form-group">
-                            <select name="program" required>
-                                <option value="">Chọn ngành học quan tâm</option>
-                                <option value="software">Phát triển phần mềm</option>
-                                <option value="network">Mạng máy tính</option>
-                                <option value="design">Thiết kế đồ họa</option>
-                                <option value="business">Quản trị kinh doanh</option>
-                            </select>
+                            <div class="custom-dropdown" id="programDropdown">
+                                <div class="dropdown-selected" onclick="toggleDropdown()">
+                                    <span class="selected-text placeholder">Chọn ngành học quan tâm</span>
+                                    <i class="fas fa-chevron-down dropdown-arrow"></i>
+                                </div>
+                                <div class="dropdown-menu" id="dropdownMenu">
+                                    <div class="dropdown-item" data-category="software">
+                                        <span class="category-title">Lập trình máy tính</span>
+                                        <i class="fas fa-chevron-right"></i>
+                                        <div class="submenu">
+                                            <div class="submenu-item" data-value="software-engineering">Kỹ thuật phần mềm</div>
+                                        </div>
+                                    </div>
+                                    <div class="dropdown-item" data-category="business">
+                                        <span class="category-title">Quản trị kinh doanh</span>
+                                        <i class="fas fa-chevron-right"></i>
+                                        <div class="submenu">
+                                            <div class="submenu-item" data-value="business-admin">Quản trị kinh doanh</div>
+                                            <div class="submenu-item" data-value="logistics">Logistics</div>
+                                            <div class="submenu-item" data-value="marketing">Marketing</div>
+                                        </div>
+                                    </div>
+                                    <div class="dropdown-item" data-category="design">
+                                        <span class="category-title">Thiết kế đồ họa</span>
+                                        <i class="fas fa-chevron-right"></i>
+                                        <div class="submenu">
+                                            <div class="submenu-item" data-value="graphic-design">Thiết kế đồ họa</div>
+                                        </div>
+                                    </div>
+                                    <div class="dropdown-item" data-category="semiconductor">
+                                        <span class="category-title">Kỹ thuật - Công nghệ bán dẫn</span>
+                                        <i class="fas fa-chevron-right"></i>
+                                        <div class="submenu">
+                                            <div class="submenu-item" data-value="semiconductor-tech">Công nghệ bán dẫn</div>
+                                        </div>
+                                    </div>
+                                    <div class="dropdown-item" data-category="esport">
+                                        <span class="category-title">Thể thao điện tử - Esports (Dự kiến)</span>
+                                        <i class="fas fa-chevron-right"></i>
+                                        <div class="submenu">
+                                            <div class="submenu-item" data-value="esport-general">Thể thao điện tử (Tổng hợp)</div>
+                                            <div class="submenu-item" data-value="esport-training">Thể thao điện tử (Hỗ trợ và đào tạo vận động viên)</div>
+                                            <div class="submenu-item" data-value="esport-production">Thể thao điện tử (Sản xuất)</div>
+                                            <div class="submenu-item" data-value="esport-management">Thể thao điện tử (Quản trị vận hành)</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" name="program" id="selectedProgram" required>
                         </div>
                         <div class="form-group">
                             <textarea name="message" placeholder="Ghi chú thêm (nếu có)" rows="4"></textarea>
