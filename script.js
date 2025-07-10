@@ -1419,7 +1419,6 @@ setupEasterEgg() {
     
     let keySequence = [];
     let touchSequence = [];
-    let touchStartY = 0;
     const dragonSequence = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'];
 
     document.addEventListener('keydown', async (e) => {
@@ -1434,25 +1433,113 @@ setupEasterEgg() {
         }
     });
 
-    // Touch version
+    // Enhanced Touch version for iPhone Chrome
+    let touchStartY = 0;
+    let touchStartTime = 0;
+    let touchCount = 0;
+    
     document.addEventListener('touchstart', (e) => {
         touchStartY = e.touches[0].clientY;
+        touchStartTime = Date.now();
+        console.log('Touch start at Y:', touchStartY);
     }, { passive: true });
 
     document.addEventListener('touchend', async (e) => {
         const touchEndY = e.changedTouches[0].clientY;
         const diff = touchStartY - touchEndY;
+        const duration = Date.now() - touchStartTime;
         
-        if (Math.abs(diff) > 50) {
-            touchSequence.push(diff > 0 ? 'up' : 'down');
-            if (touchSequence.length > 6) touchSequence.shift();
+        console.log('Touch end - Diff:', diff, 'Duration:', duration);
+        
+        // More lenient swipe detection for iPhone
+        if (Math.abs(diff) > 30 && duration < 1000) {
+            const direction = diff > 0 ? 'up' : 'down';
+            touchSequence.push(direction);
+            console.log('Touch sequence:', touchSequence);
             
+            // Keep only last 6 gestures
+            if (touchSequence.length > 6) {
+                touchSequence.shift();
+            }
+            
+            // Check for dragon sequence: up,up,down,down,up,down
             if (touchSequence.join(',') === 'up,up,down,down,up,down') {
+                console.log('🐉 Dragon sequence detected! Activating...');
                 await this.epicDragon.createEpicDragonAnimation();
                 touchSequence = [];
             }
+            
+            // Reset sequence after 5 seconds of inactivity
+            clearTimeout(this.touchResetTimeout);
+            this.touchResetTimeout = setTimeout(() => {
+                touchSequence = [];
+                console.log('Touch sequence reset');
+            }, 5000);
         }
     }, { passive: true });
+    
+    // Alternative: Triple tap to activate (easier for testing)
+    let tapCount = 0;
+    let lastTapTime = 0;
+    
+    document.addEventListener('touchend', async (e) => {
+        const currentTime = Date.now();
+        const timeSinceLastTap = currentTime - lastTapTime;
+        
+        if (timeSinceLastTap < 300) {
+            tapCount++;
+        } else {
+            tapCount = 1;
+        }
+        
+        lastTapTime = currentTime;
+        
+        // Triple tap anywhere to activate dragon (backup method)
+        if (tapCount === 3) {
+            console.log('🐉 Triple tap detected! Activating dragon...');
+            await this.epicDragon.createEpicDragonAnimation();
+            tapCount = 0;
+        }
+        
+        // Reset tap count after 1 second
+        setTimeout(() => {
+            if (Date.now() - lastTapTime >= 1000) {
+                tapCount = 0;
+            }
+        }, 1000);
+    }, { passive: true });
+
+    // iPhone Chrome specific: Add click on logo for easy activation
+    const logoImg = document.querySelector('.logo-img');
+    const logoText = document.querySelector('.logo-text');
+    
+    if (logoImg) {
+        let logoClickCount = 0;
+        logoImg.addEventListener('click', async (e) => {
+            e.preventDefault();
+            logoClickCount++;
+            console.log('Logo clicked:', logoClickCount);
+            
+            if (logoClickCount >= 5) {
+                console.log('🐉 Logo clicked 5 times! Activating dragon...');
+                await this.epicDragon.createEpicDragonAnimation();
+                logoClickCount = 0;
+            }
+            
+            // Reset after 3 seconds
+            setTimeout(() => {
+                logoClickCount = 0;
+            }, 3000);
+        });
+    }
+    
+    // Add click on dragon emoji in page title for activation
+    document.addEventListener('click', async (e) => {
+        if (e.target.textContent && e.target.textContent.includes('🐉')) {
+            console.log('🐉 Dragon emoji clicked! Activating...');
+            await this.epicDragon.createEpicDragonAnimation();
+        }
+    });
 
     // Add window resize handler for 3D dragon
     window.addEventListener('resize', () => {
